@@ -1,16 +1,20 @@
-import type { CodeToolType } from '../constants'
+import type { RelayToolType } from '../constants'
 import type { LocalConfig } from '../utils/local-config'
 import type { RemoteModel } from '../utils/models'
+import { existsSync } from 'node:fs'
+import { homedir } from 'node:os'
 import process from 'node:process'
 import ansis from 'ansis'
 import inquirer from 'inquirer'
-import { resolveCodeToolType } from '../constants'
+import { join } from 'pathe'
+import { isCliTool, MODEL_PREFIX, resolveCodeToolType } from '../constants'
 import { clearClaudeApiConfig, displayClaudeConfig, getExistingClaudeApiConfig, writeClaudeApiConfig } from '../utils/claude-config'
 import { clearCodexApiConfig, displayCodexConfig, getExistingCodexConfig, writeCodexApiConfig } from '../utils/codex-config'
+import { ensureDir, writeFile } from '../utils/fs'
 import { installTool, isToolInstalled } from '../utils/installer'
 import { readLocalConfig, updateLocalConfig } from '../utils/local-config'
-import { buildModelsChoices, fetchModels } from '../utils/models'
-import { confirm, displayBanner, inputApiToken, inputBaseUrl, maskToken, selectCodeTool } from '../utils/ui'
+import { buildModelsChoices, fetchModels, filterByPrefix } from '../utils/models'
+import { confirm, displayBanner, inputApiToken, inputBaseUrl, maskToken, selectTool } from '../utils/ui'
 
 export interface InitOptions {
   codeType?: string
@@ -91,8 +95,9 @@ async function configureClaudeCode(options: InitOptions, baseUrl: string, token:
     }
   }
 
-  // 一次性拉取模型列表，供四档模型选择复用
-  const models = await fetchModelList(baseUrl, token)
+  // 一次性拉取全部模型列表，按客户端前缀过滤后供选择复用
+  const allModels = await fetchModelList(baseUrl, token)
+  const models = allModels ? filterByPrefix(allModels, MODEL_PREFIX['claude-code']) : allModels
   const m = memory.claude
 
   const model = await promptModelFromList(models, '请选择主模型 (ANTHROPIC_MODEL)：', options.model, options.skipPrompt, m?.model)
@@ -124,7 +129,8 @@ async function configureCodex(options: InitOptions, baseUrl: string, token: stri
     }
   }
 
-  const models = await fetchModelList(baseUrl, token)
+  const allModels = await fetchModelList(baseUrl, token)
+  const models = allModels ? filterByPrefix(allModels, MODEL_PREFIX.codex) : allModels
   const model = await promptModelFromList(models, '请选择默认使用的模型：', options.model, options.skipPrompt, memory.codex?.model)
   const config = { baseUrl, token, model }
   writeCodexApiConfig(config)
@@ -134,35 +140,86 @@ async function configureCodex(options: InitOptions, baseUrl: string, token: stri
   updateLocalConfig({ codex: { model } })
 }
 
+/** 获取用户下载目录，回退到 home 目录 */
+function getDownloadsDir(): string {
+  const home = homedir()
+  const candidates = [
+    process.env.USERPROFILE ? join(process.env.USERPROFILE, 'Downloads') : '',
+    join(home, 'Downloads'),
+  ]
+  for (const c of candidates) {
+    if (c && existsSync(c))
+      return c
+  }
+  // Downloads 不存在时回退到 home，并创建 Downloads
+  const fallback = join(home, 'Downloads')
+  ensureDir(fallback)
+  return fallback
+}
+
+async function configureChatbox(options: InitOptions, baseUrl: string, token: string, memory: LocalConfig): Promise<void> {
+  const allModels = await fetchModelList(baseUrl, token)
+  const models = allModels ? filterByPrefix(allModels, MODEL_PREFIX.chatbox) : allModels
+  const model = await promptModelFromList(models, '请选择默认模型（chat- 前缀）：', options.model, options.skipPrompt, memory.chatbox?.model)
+
+  // 生成 config.yaml 到下载目录
+  const downloads = getDownloadsDir()
+  const filePath = join(downloads, 'srpllm-chatbox-config.yaml')
+  const yaml = [
+    '# SrP-LLM 中转站 Chatbox 配置',
+    '# 在 Chatbox 客户端「设置 → 模型服务 → OpenAI API」中填入以下信息',
+    `base_url: ${baseUrl}`,
+    `api_key: ${token}`,
+    model ? `model: ${model}` : '# model: （未选择，请在 Chatbox 中手动指定）',
+    '',
+  ].join('\n')
+  writeFile(filePath, yaml)
+
+  console.log(ansis.green('\n✔ Chatbox 配置已生成'))
+  console.log(ansis.gray(`  配置文件：${filePath}`))
+  console.log(ansis.gray(`  base_url：${baseUrl}`))
+  console.log(ansis.gray(`  api_key：${maskToken(token)}`))
+  if (model)
+    console.log(ansis.gray(`  model：${model}`))
+  console.log(ansis.yellow('\n  ℹ 请打开 Chatbox，在「设置 → 模型服务 → OpenAI API 兼容」中填入以上 base_url / api_key / model'))
+
+  updateLocalConfig({ chatbox: { model } })
+}
+
 export async function init(options: InitOptions = {}): Promise<void> {
   try {
     // 读取本地记忆（上次的配置）
     const memory = readLocalConfig()
 
-    const tool: CodeToolType = options.codeType
+    const tool: RelayToolType = options.codeType
       ? resolveCodeToolType(options.codeType)
-      : (options.skipPrompt ? 'claude-code' : await selectCodeTool(memory.codeType))
+      : (options.skipPrompt ? 'claude-code' : await selectTool(memory.codeType))
 
     displayBanner(tool)
 
-    // 第一步：安装 CLI 工具
-    if (options.skipPrompt) {
-      await installTool(tool, true)
-    }
-    else {
-      const installed = await isToolInstalled(tool)
-      if (!installed) {
-        const shouldInstall = await confirm(`未检测到 ${tool === 'claude-code' ? 'Claude Code' : 'Codex'}，是否立即安装？`, true)
-        if (shouldInstall) {
-          await installTool(tool, false)
-        }
-        else {
-          console.log(ansis.yellow('ℹ 已跳过 CLI 安装，仅写入配置文件'))
-        }
+    // 第一步：安装 CLI 工具（chatbox 是桌面 GUI，不安装 CLI）
+    if (isCliTool(tool)) {
+      if (options.skipPrompt) {
+        await installTool(tool, true)
       }
       else {
-        console.log(ansis.green(`✔ ${tool === 'claude-code' ? 'Claude Code' : 'Codex'} 已安装`))
+        const installed = await isToolInstalled(tool)
+        if (!installed) {
+          const shouldInstall = await confirm(`未检测到 ${tool === 'claude-code' ? 'Claude Code' : 'Codex'}，是否立即安装？`, true)
+          if (shouldInstall) {
+            await installTool(tool, false)
+          }
+          else {
+            console.log(ansis.yellow('ℹ 已跳过 CLI 安装，仅写入配置文件'))
+          }
+        }
+        else {
+          console.log(ansis.green(`✔ ${tool === 'claude-code' ? 'Claude Code' : 'Codex'} 已安装`))
+        }
       }
+    }
+    else {
+      console.log(ansis.gray('ℹ Chatbox 为桌面客户端，需自行安装；本工具仅生成配置文件'))
     }
 
     // 第二步：引导填写 base_url 与 api_token（默认回填上次值）
@@ -184,8 +241,11 @@ export async function init(options: InitOptions = {}): Promise<void> {
     if (tool === 'claude-code') {
       await configureClaudeCode(options, baseUrl, token, memory)
     }
-    else {
+    else if (tool === 'codex') {
       await configureCodex(options, baseUrl, token, memory)
+    }
+    else {
+      await configureChatbox(options, baseUrl, token, memory)
     }
 
     // 记住本次工具选择与 base_url / token（便于下次回填）

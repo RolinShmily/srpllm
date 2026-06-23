@@ -8,7 +8,7 @@ const SRPLLM_CONFIG_FILE = join(SRPLLM_DIR, 'config.json')
 
 export interface LocalConfig {
   /** 上次选的工具 */
-  codeType?: 'claude-code' | 'codex'
+  codeType?: 'claude-code' | 'codex' | 'chatbox'
   /** 上次输入的中转站 base_url */
   baseUrl?: string
   /** 上次输入的 api_token（明文存储，文件权限 600） */
@@ -22,6 +22,10 @@ export interface LocalConfig {
   }
   /** 上次为 Codex 选的模型 */
   codex?: {
+    model?: string
+  }
+  /** 上次为 Chatbox 选的模型 */
+  chatbox?: {
     model?: string
   }
 }

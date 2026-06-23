@@ -78,3 +78,13 @@ export function buildModelsChoices(models: RemoteModel[]): Array<{ name: string,
     value: m.id,
   }))
 }
+
+/**
+ * 按中转站客户端前缀过滤模型列表。
+ * claude-code → cc-，codex → cx-，chatbox → chat-
+ * 不带前缀的模型一律排除（中转站约定模型 id 必须带客户端前缀）。
+ */
+export function filterByPrefix(models: RemoteModel[], prefix: string): RemoteModel[] {
+  const p = prefix.toLowerCase()
+  return models.filter(m => m.id.toLowerCase().startsWith(p))
+}

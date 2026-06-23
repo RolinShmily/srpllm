@@ -17,7 +17,7 @@ export function customizeHelp(sections: any[]): any[] {
       `  ${ansis.cyan('srpllm uninstall')}    清除中转站配置`,
       '',
       ansis.gray('  选项'),
-      `  ${ansis.green('--code-type, -T')} <type>   指定工具 (claude-code/codex, cc/cx)`,
+      `  ${ansis.green('--code-type, -T')} <type>   指定工具 (claude-code/codex/chatbox, cc/cx/cb)`,
       `  ${ansis.green('--base-url, -u')} <url>      中转站 base_url`,
       `  ${ansis.green('--token, -k')} <token>       api_token`,
       `  ${ansis.green('--model, -m')} <model>       主模型 (ANTHROPIC_MODEL)`,
@@ -39,7 +39,7 @@ export function customizeHelp(sections: any[]): any[] {
 export function setupCommands(cli: CAC): void {
   cli
     .command('', '交互式引导配置中转站（默认）')
-    .option('--code-type, -T <type>', '工具类型 (claude-code/codex, cc/cx)')
+    .option('--code-type, -T <type>', '工具类型 (claude-code/codex/chatbox, cc/cx/cb)')
     .option('--base-url, -u <url>', '中转站 base_url')
     .option('--token, -k <token>', 'api_token')
     .option('--model, -m <model>', '主模型 (ANTHROPIC_MODEL)')
@@ -53,7 +53,7 @@ export function setupCommands(cli: CAC): void {
 
   cli
     .command('init', '安装 CLI 并配置中转站')
-    .option('--code-type, -T <type>', '工具类型 (claude-code/codex, cc/cx)')
+    .option('--code-type, -T <type>', '工具类型 (claude-code/codex/chatbox, cc/cx/cb)')
     .option('--base-url, -u <url>', '中转站 base_url')
     .option('--token, -k <token>', 'api_token')
     .option('--model, -m <model>', '主模型 (ANTHROPIC_MODEL)')
@@ -67,7 +67,7 @@ export function setupCommands(cli: CAC): void {
 
   cli
     .command('uninstall', '清除中转站配置')
-    .option('--code-type, -T <type>', '工具类型 (claude-code/codex, cc/cx)')
+    .option('--code-type, -T <type>', '工具类型 (claude-code/codex/chatbox, cc/cx/cb)')
     .option('--skip-prompt, -s', '非交互模式')
     .action(async (options) => {
       await uninstall(options)

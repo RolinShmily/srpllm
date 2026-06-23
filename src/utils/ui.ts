@@ -1,21 +1,21 @@
-import type { CodeToolType } from '../constants'
+import type { RelayToolType } from '../constants'
 import ansis from 'ansis'
 import inquirer from 'inquirer'
 import { version } from '../../package.json'
 import { CODE_TOOL_LABELS } from '../constants'
 
-export function displayBanner(codeTool?: CodeToolType): void {
+export function displayBanner(codeTool?: RelayToolType): void {
   const tool = codeTool ? ` ${ansis.gray(`· ${CODE_TOOL_LABELS[codeTool]}`)}` : ''
   console.log(ansis.cyan.bold(`\n  SrP-LLM 配置工具 v${version}${tool}`))
   console.log(ansis.gray('  中转站客户端一键配置：安装 CLI · 填写 base_url / api_token · 选择模型\n'))
 }
 
-export async function selectCodeTool(defaultTool?: 'claude-code' | 'codex'): Promise<CodeToolType> {
-  const choices = [
-    { name: 'Claude Code', value: 'claude-code' as CodeToolType },
-    { name: 'Codex', value: 'codex' as CodeToolType },
-  ]
-  const { tool } = await inquirer.prompt<{ tool: CodeToolType }>({
+export async function selectTool(defaultTool?: RelayToolType): Promise<RelayToolType> {
+  const choices = (['claude-code', 'codex', 'chatbox'] as RelayToolType[]).map(value => ({
+    name: CODE_TOOL_LABELS[value],
+    value,
+  }))
+  const { tool } = await inquirer.prompt<{ tool: RelayToolType }>({
     type: 'list',
     name: 'tool',
     message: '请选择要配置的客户端工具：',
