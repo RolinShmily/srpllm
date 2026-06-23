@@ -1,193 +1,143 @@
-[![npm version][npm-version-src]][npm-version-href]
-[![npm downloads][npm-downloads-src]][npm-downloads-href]
-[![License][license-src]][license-href]
-[![Claude Code][claude-code-src]][claude-code-href]
-[![codecov][codecov-src]][codecov-href]
-[![JSDocs][jsdocs-src]][jsdocs-href]
-[![Ask DeepWiki][deepwiki-src]][deepwiki-href]
-
 <div align="center">
-  <img src="./src/assets/banner.webp" alt="Banner"/>
 
-  <h1>
-    ZCF - Zero-Config Code Flow
-  </h1>
+# SrP-LLM 配置工具
 
-  <p align="center">
-  <b>English</b> | <a href="README_zh-CN.md">中文</a> | <a href="README_ja-JP.md">日本語</a> | <a href="CHANGELOG.md">Changelog</a>
+中转站客户端一键配置：安装 Claude Code / Codex · 填写 base_url 与 api_token · 从 litellm 拉取并选择模型
 
-**✨ Full Documentation**: [ZCF Docs](https://zcf.ufomiao.com/)
+[![npm version](https://img.shields.io/npm/v/srpllm.svg)](https://www.npmjs.com/package/srpllm)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-> Zero-config, one-click setup for Claude Code & Codex with bilingual support, intelligent agent system and personalized AI assistant
-</p>
 </div>
 
-## ♥️ Sponsors
+## 简介
 
-[![GLM](./src/assets/GLM-en.png)](https://z.ai/subscribe?ic=8JVLJQFSKB)
+`srpllm` 是为 **SrP-LLM 中转站**（基于 litellm 后端）准备的客户端配置脚本。一条命令即可：
 
-This project is sponsored by Z.ai, supporting us with their GLM CODING PLAN.
-GLM CODING PLAN is a subscription service designed for AI coding, starting at just $10/month. It provides access to their flagship GLM-4.7 & （GLM-5 Only Available  for Pro Users）model across 10+ popular AI coding tools (Claude Code, Cline, Roo Code, etc.), offering developers top-tier, fast, and stable coding experiences.
-Get 10% OFF GLM CODING PLAN：https://z.ai/subscribe?ic=8JVLJQFSKB
+1. 安装 Claude Code / Codex CLI
+2. 引导填写中转站的 `base_url` 与 `api_token`
+3. 从中转站后端 `GET {base_url}/v1/models` 拉取可用模型列表并选择
+4. 把配置写入对应客户端的配置文件（Claude Code 的 `settings.json` / Codex 的 `config.toml` + `auth.json`）
 
----
+仅做「安装 + 配置接入中转站」这一件事，不做更多设置。
 
-[![Sponsor PatewayAI](./src/assets/pateway.ai-en.png)](https://pateway.ai/?ch=vnr0h5&aff=9AWWH87C)
-PatewayAI is a high-quality model API relay service provider focused on official direct connections for serious AI developers, offering the full range of Claude and Codex series models. 100% official source supply with no adulteration — open to inspection. Transparent billing with token-level invoices auditable line by line. Enterprise-grade concurrency support with a dedicated management platform for enterprise customers, including formal contracts and invoicing. PatewayAI offers an exclusive benefit for ZCF users: register via <a href="https://pateway.ai/?ch=vnr0h5&aff=9AWWH87C">this link</a> to get $3 free trial credit, recharges as low as 60% off, with bilateral invite rewards up to $150!
+## 快速开始
 
----
-
-[![Sponsor AI API](./src/assets/302.ai-en.jpg)](https://share.302.ai/gAT9VG)
-[302.AI](https://share.302.ai/gAT9VG) is a pay-as-you-go enterprise AI resource hub that offers the latest and most comprehensive AI models and APIs on the market, along with a variety of ready-to-use online AI applications.
-
----
-
-<table>
-<tbody>
-<tr>
-<td width="180"><a href="https://www.packyapi.com/register?aff=zcf"><img src="./src/assets/packycode.png" alt="PackyCode" width="150"></a></td>
-<td>Thanks to PackyCode for sponsoring this project! PackyCode is a reliable and efficient API relay service provider, offering relay services for Claude Code, Codex, Gemini, and more. PackyCode provides special discounts for our software users: register using  <a href="https://www.packyapi.com/register?aff=zcf">this link</a>  and enter the "zcf" promo code during recharge to get 10% off.</td>
-</tr>
-<tr>
-<td width="180"><a href="https://apikey.fun/register?aff=ZCFZCF"><img src="./src/assets/apikey-fun.png" alt="APIKEY.FUN" width="150"></a></td>
-<td>Thanks to APIKEY.FUN for sponsoring this project! APIKEY.FUN is a professional enterprise-grade AI relay platform dedicated to providing stable, efficient, and low-cost API access for both companies and individual developers. The platform supports popular models including Claude, OpenAI, and Gemini, with pricing as low as 7% of official rates. Register via <a href="https://apikey.fun/register?aff=ZCFZCF">this link</a> to enjoy an exclusive offer of up to permanent 95% recharge pricing (5% off).</td>
-</tr>
-<tr>
-<td width="180"><a href="https://www.aicodemirror.com/register?invitecode=ZCFZCF"><img src="./src/assets/AICodeMirror.jpg" alt="AICodeMirror" width="150"></a></td>
-<td>Thanks to AICodeMirror for sponsoring this project! AICodeMirror provides official high-stability relay services for Claude Code/Codex/Gemini CLI, supporting enterprise-level high concurrency, fast invoicing, and 7x24 dedicated technical support. Official channels for Claude Code/Codex/Gemini at discounts as low as 38%/2%/10.9% off, with additional discounts on top-ups! AICodeMirror offers special benefits for ZCF users: users who register through <a href="https://www.aicodemirror.com/register?invitecode=ZCFZCF">this link</a> can enjoy 20% off on first top-up, and enterprise customers can get up to 25% off!</td>
-</tr>
-<tr>
-<td width="180"><a href="https://crazyrouter.com/?utm_source=github&utm_medium=sponsor&utm_campaign=zcf&aff=yJFo"><img src="./src/assets/crazyrouter.svg" alt="Crazyrouter" width="150"></a></td>
-<td>Thanks to Crazyrouter for sponsoring this project! Crazyrouter is a high-performance AI API aggregation gateway — one API key for 300+ models (GPT, Claude, Gemini, DeepSeek, and more). All models at 55% of official pricing with auto-failover, smart routing, and unlimited concurrency. Fully OpenAI-compatible, works seamlessly with Claude Code, Codex, and Gemini CLI. Crazyrouter offers an exclusive deal for ZCF users: register via <a href="https://crazyrouter.com/?utm_source=github&utm_medium=sponsor&utm_campaign=zcf&aff=yJFo">this link</a> to get $2 free credit instantly!</td>
-</tr>
-</tbody>
-</table>
-
-## 🚀 Quick Start
-
-- Recommended: `npx zcf` opens the interactive menu — pick what you need.
-- Common commands:
+无需全局安装，直接用 `npx` 运行：
 
 ```bash
-npx zcf i        # Full initialization: install + workflows + API/CCR + MCP
-npx zcf u        # Update workflows only
-npx zcf --lang zh-CN  # Switch interface language (example)
+npx srpllm
 ```
 
-- Non-interactive example (provider preset):
+按提示选择工具、输入中转站地址和 token、选择模型即可完成。
+
+## 命令
 
 ```bash
-npx zcf i -s -p 302ai -k "sk-xxx"
+npx srpllm                      # 交互式引导配置（默认）
+npx srpllm init                 # 安装 CLI 并配置中转站（同上）
+npx srpllm uninstall            # 清除中转站配置（可选同时卸载 CLI）
 ```
 
-More usage, options, and workflows: see documentation.
+### 非交互模式（CI / 脚本）
 
-## 📖 Full Documentation
+```bash
+npx srpllm init -s \
+  -T claude-code \
+  -u https://api.srpllm.com \
+  -k sk-xxxx \
+  -m glm-5.2 \
+  -O glm-5.2 \
+  -S glm-5-turbo \
+  -H glm-5-turbo
+```
 
-- https://zcf.ufomiao.com/
+### 参数
 
-## 💬 Community
+| 参数 | 简写 | 说明 |
+|------|------|------|
+| `--code-type` | `-T` | 工具类型：`claude-code` / `codex`（简写 `cc` / `cx`） |
+| `--base-url` | `-u` | 中转站 base_url（例如 `https://api.srpllm.com`） |
+| `--token` | `-k` | api_token |
+| `--model` | `-m` | 主模型，写入 `ANTHROPIC_MODEL` |
+| `--opus-model` | `-O` | Opus 档模型，写入 `ANTHROPIC_DEFAULT_OPUS_MODEL` |
+| `--sonnet-model` | `-S` | Sonnet 档模型，写入 `ANTHROPIC_DEFAULT_SONNET_MODEL` |
+| `--haiku-model` | `-H` | Haiku 档模型，写入 `ANTHROPIC_DEFAULT_HAIKU_MODEL` |
+| `--skip-prompt` | `-s` | 非交互模式，跳过所有交互提示 |
+| `--help` | `-h` | 显示帮助 |
+| `--version` | `-v` | 显示版本 |
 
-Join our Telegram group for support, discussions, and updates:
+> Opus / Sonnet / Haiku 三档模型参数仅对 Claude Code 生效；Codex 只使用 `--model`。
 
-[![Telegram](https://img.shields.io/badge/Telegram-Join%20Chat-blue?style=flat&logo=telegram)](https://t.me/ufomiao_zcf)
+## 配置写入位置
 
-## 🙏 Acknowledgments
+### Claude Code
 
-This project is inspired by and incorporates work from:
+写入 `~/.claude/settings.json` 的 `env` 段（合并式，保留其它字段）：
 
-- [LINUX DO - New Ideal Community](https://linux.do)
-- [CCR](https://github.com/musistudio/claude-code-router)
-- [CCometixLine](https://github.com/Haleclipse/CCometixLine)
-- [ccusage](https://github.com/ryoppippi/ccusage)
-- [BMad Method](https://github.com/bmad-code-org/BMAD-METHOD)
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.srpllm.com",
+    "ANTHROPIC_AUTH_TOKEN": "sk-xxxx",
+    "ANTHROPIC_MODEL": "glm-5.2",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-5.2",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-5-turbo",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-5-turbo",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "1000000",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+  }
+}
+```
 
-Thanks to these community contributors for sharing!
+- 统一使用 `ANTHROPIC_AUTH_TOKEN`（Bearer token 鉴权），清除原 `ANTHROPIC_API_KEY`
+- 额外附加 `CLAUDE_CODE_AUTO_COMPACT_WINDOW` 与 `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` 两个默认值
 
-## ❤️ Support & Sponsors
+### Codex
 
-If you find this project helpful, please consider sponsoring its development. Your support is greatly appreciated!
+写入 `~/.codex/config.toml`（合并式，保留用户其它 provider / mcp / projects 等配置，修改前自动备份）：
 
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/UfoMiao)
+```toml
+# --- SrP-LLM 中转站配置 ---
+model = "gpt-5.2"
+model_provider = "srpllm"
 
-<table>
-  <tr>
-    <td><img src="/src/assets/alipay.webp" width="200" alt="Alipay" /></td>
-    <td><img src="/src/assets/wechat.webp" width="200" alt="WeChat Pay" /></td>
-  </tr>
-</table>
+[model_providers.srpllm]
+name = "SrP-LLM"
+base_url = "https://api.srpllm.com"
+wire_api = "responses"
+temp_env_key = "SRPLLM_API_KEY"
+requires_openai_auth = false
+```
 
-### Our Sponsors
+并把 `~/.codex/auth.json` 中的 `SRPLLM_API_KEY` 与 `OPENAI_API_KEY` 设为 token（合并保留其它 key）。
 
-A huge thank you to all our sponsors for their generous support!
+## 卸载
 
-【Corporate Sponsors】
+```bash
+npx srpllm uninstall
+```
 
-- [302.AI](https://share.302.ai/gAT9VG) (first corporate sponsorship 🤠)
-- [GLM](https://z.ai/subscribe?ic=8JVLJQFSKB) (first AI model sponsorship 🤖)
-- [PackyCode](https://www.packyapi.com/register?aff=zcf) (first API proxy service sponsor 🧝🏻‍♀️)
-- [APIKEY.FUN](https://apikey.fun/register?aff=ZCFZCF) (enterprise AI relay sponsor 🎁)
-- [AICodeMirror](https://www.aicodemirror.com/register?invitecode=ZCFZCF) (official high-stability relay service sponsor 🪞)
-- [UUCode](https://www.uucode.org/auth?ref=JQ2DJ1T8) (sponsored $100 proxy credits 💰)
-- [Crazyrouter](https://crazyrouter.com/?utm_source=github&utm_medium=sponsor&utm_campaign=zcf&aff=yJFo) (AI API aggregation gateway sponsor 🚀)
-- [PatewayAI](https://pateway.ai/?ch=vnr0h5&aff=9AWWH87C) (official direct-connect relay service sponsor 🛡️)
+- Claude Code：从 `settings.json` 清除中转站相关 env 字段，保留其它设置
+- Codex：移除 `[model_providers.srpllm]` 段与顶层 `model`/`model_provider`，保留其它配置（修改前自动备份）
+- 可选择同时卸载 Claude Code / Codex CLI
 
-【Individual Sponsors】
+## 模型列表获取
 
-- Tc (first sponsor)
-- Argolinhas (first ko-fi sponsor ٩(•̤̀ᵕ•̤́๑))
-- r\*r (first anonymous sponsor 🤣)
-- \*\*康 (first KFC sponsor 🍗)
-- \*东 (first coffee sponsor ☕️)
-- 炼\*3 (first Termux user sponsor 📱)
-- [chamo101](https://github.com/chamo101) (first GitHub issue sponsor 🎉)
-- 初屿贤 (first Codex user sponsor 🙅🏻‍♂️)
-- Protein (first 1688 sponsor 😏)
-- [musistudio](https://github.com/musistudio) (first open source project author sponsor, the author of [CCR](https://github.com/musistudio/claude-code-router) 🤩)
-- \*年 (first 100 CNY sponsor 💴)
-- [BeatSeat](https://github.com/BeatSeat) (community expert 😎, provided $1000 Claude credits)
-- [wenwen](https://github.com/wenwen12345) (community expert 🤓, provided daily $100 Claude&GPT credits)
-- 16°C coffee (My best friend 🤪, offered ChatGPT Pro $200 package)
+模型列表从中转站后端 litellm 的标准接口拉取：
 
-### Promotion Thanks
+```
+GET {base_url}/v1/models
+Authorization: Bearer {api_token}
+```
 
-Thanks to the following authors for promoting this project:
+返回 `data: [{ id, owned_by, ... }]` 格式，工具会列出全部模型供选择。若拉取失败（网络不通 / token 无效），交互模式下可手动输入模型名，非交互模式下跳过模型配置。
 
-- 逛逛 GitHub, article: https://mp.weixin.qq.com/s/phqwSRb16MKCHHVozTFeiQ
-- Geek, tweet: https://x.com/geekbb/status/1955174718618866076
+## 平台支持
 
-## 📄 License
+- macOS / Linux / Windows / WSL / Termux
+- Claude Code 安装方式：npm / Homebrew / curl / PowerShell
+- Codex 安装方式：npm / Homebrew
 
-[MIT License](LICENSE)
+## License
 
----
-
-## 🚀 Contributors
-
-<a href="https://github.com/UfoMiao/zcf/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=UfoMiao/zcf" />
-</a>
-<br /><br />
-
-## ⭐️ Star History
-
-If this project helps you, please give me a ⭐️ Star!
-
-[![Star History Chart](https://api.star-history.com/svg?repos=UfoMiao/zcf&type=Date)](https://star-history.com/#UfoMiao/zcf&Date)
-
-<!-- Badges -->
-
-[npm-version-src]: https://img.shields.io/npm/v/zcf?style=flat&colorA=080f12&colorB=1fa669
-[npm-version-href]: https://npmjs.com/package/zcf
-[npm-downloads-src]: https://img.shields.io/npm/dm/zcf?style=flat&colorA=080f12&colorB=1fa669
-[npm-downloads-href]: https://npmjs.com/package/zcf
-[license-src]: https://img.shields.io/github/license/ufomiao/zcf.svg?style=flat&colorA=080f12&colorB=1fa669
-[license-href]: https://github.com/ufomiao/zcf/blob/main/LICENSE
-[claude-code-src]: https://img.shields.io/badge/Claude-Code-1fa669?style=flat&colorA=080f12&colorB=1fa669
-[claude-code-href]: https://claude.ai/code
-[codecov-src]: https://codecov.io/gh/UfoMiao/zcf/graph/badge.svg?token=HZI6K4Y7D7&style=flat&colorA=080f12&colorB=1fa669
-[codecov-href]: https://codecov.io/gh/UfoMiao/zcf
-[jsdocs-src]: https://img.shields.io/badge/jsdocs-reference-1fa669?style=flat&colorA=080f12&colorB=1fa669
-[jsdocs-href]: https://www.jsdocs.io/package/zcf
-[deepwiki-src]: https://img.shields.io/badge/Ask-DeepWiki-1fa669?style=flat&colorA=080f12&colorB=1fa669
-[deepwiki-href]: https://deepwiki.com/UfoMiao/zcf
+[MIT](./LICENSE)
