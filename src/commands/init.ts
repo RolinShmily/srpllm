@@ -37,6 +37,23 @@ async function fetchModelList(baseUrl: string, token: string): Promise<RemoteMod
   }
 }
 
+/**
+ * 拉取全量模型并按客户端前缀过滤，打印过滤后数量。
+ * 拉取失败或过滤后为空时返回 null（调用方降级为手动输入）。
+ */
+async function fetchFilteredModels(baseUrl: string, token: string, prefix: string): Promise<RemoteModel[] | null> {
+  const allModels = await fetchModelList(baseUrl, token)
+  if (!allModels)
+    return null
+  const filtered = filterByPrefix(allModels, prefix)
+  if (filtered.length === 0) {
+    console.log(ansis.yellow(`ℹ 已获取 ${allModels.length} 个模型，但无 ${prefix}* 前缀的模型，可手动输入`))
+    return null
+  }
+  console.log(ansis.gray(`ℹ 已获取 ${allModels.length} 个模型，过滤后剩余 ${filtered.length} 个 ${prefix}* 模型`))
+  return filtered
+}
+
 async function promptModelFromList(
   models: RemoteModel[] | null,
   message: string,
@@ -96,8 +113,7 @@ async function configureClaudeCode(options: InitOptions, baseUrl: string, token:
   }
 
   // 一次性拉取全部模型列表，按客户端前缀过滤后供选择复用
-  const allModels = await fetchModelList(baseUrl, token)
-  const models = allModels ? filterByPrefix(allModels, MODEL_PREFIX['claude-code']) : allModels
+  const models = await fetchFilteredModels(baseUrl, token, MODEL_PREFIX['claude-code'])
   const m = memory.claude
 
   const model = await promptModelFromList(models, '请选择主模型 (ANTHROPIC_MODEL)：', options.model, options.skipPrompt, m?.model)
@@ -129,8 +145,7 @@ async function configureCodex(options: InitOptions, baseUrl: string, token: stri
     }
   }
 
-  const allModels = await fetchModelList(baseUrl, token)
-  const models = allModels ? filterByPrefix(allModels, MODEL_PREFIX.codex) : allModels
+  const models = await fetchFilteredModels(baseUrl, token, MODEL_PREFIX.codex)
   const model = await promptModelFromList(models, '请选择默认使用的模型：', options.model, options.skipPrompt, memory.codex?.model)
   const config = { baseUrl, token, model }
   writeCodexApiConfig(config)
@@ -158,8 +173,7 @@ function getDownloadsDir(): string {
 }
 
 async function configureChatbox(options: InitOptions, baseUrl: string, token: string, memory: LocalConfig): Promise<void> {
-  const allModels = await fetchModelList(baseUrl, token)
-  const models = allModels ? filterByPrefix(allModels, MODEL_PREFIX.chatbox) : allModels
+  const models = await fetchFilteredModels(baseUrl, token, MODEL_PREFIX.chatbox)
   const model = await promptModelFromList(models, '请选择默认模型（chat- 前缀）：', options.model, options.skipPrompt, memory.chatbox?.model)
 
   // 生成 config.yaml 到下载目录

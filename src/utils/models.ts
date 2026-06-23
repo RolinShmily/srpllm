@@ -63,7 +63,7 @@ export async function fetchModels(baseUrl: string, token: string): Promise<Remot
       throw new Error('模型列表为空')
     }
 
-    spinner.succeed(`✔ 已获取 ${models.length} 个可用模型`)
+    spinner.succeed('✔ 已获取模型列表')
     return models
   }
   catch (error) {

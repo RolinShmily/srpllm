@@ -29,7 +29,7 @@ export async function inputBaseUrl(defaultUrl?: string): Promise<string> {
   const { url } = await inquirer.prompt<{ url: string }>({
     type: 'input',
     name: 'url',
-    message: '请输入中转站 base_url（例如 https://api.srpllm.com）：',
+    message: '请输入中转站 base_url：',
     default: defaultUrl,
     validate: (value: string) => {
       const v = value.trim()
