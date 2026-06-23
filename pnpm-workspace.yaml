@@ -1,24 +1,20 @@
 packages:
   - .
 
-catalogs:
-  build:
-    '@antfu/eslint-config': ^5.4.1
-    eslint: ^9.36.0
-    eslint-plugin-format: ^1.0.2
-    tsx: ^4.20.5
-    typescript: ^5.9.2
-    unbuild: ^3.6.1
-  cli:
-    ansis: ^4.1.0
-    cac: ^6.7.14
-    inquirer: ^12.9.6
-    ora: ^9.0.0
-  runtime:
-    pathe: ^2.0.3
-    tinyexec: ^1.0.1
-  types:
-    '@types/inquirer': ^9.0.9
-    '@types/node': ^22.18.6
+catalog:
+  '@antfu/eslint-config': ^5.4.1
+  '@types/inquirer': ^9.0.9
+  '@types/node': ^22.18.6
+  ansis: ^4.1.0
+  cac: ^6.7.14
+  eslint: ^9.36.0
+  eslint-plugin-format: ^1.0.2
+  inquirer: ^12.9.6
+  ora: ^9.0.0
+  pathe: ^2.0.3
+  tinyexec: ^1.0.1
+  tsx: ^4.20.5
+  typescript: ^5.9.2
+  unbuild: ^3.6.1
 onlyBuiltDependencies:
   - esbuild
