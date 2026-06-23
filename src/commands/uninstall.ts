@@ -5,6 +5,7 @@ import { resolveCodeToolType } from '../constants'
 import { clearClaudeApiConfig } from '../utils/claude-config'
 import { clearCodexApiConfig } from '../utils/codex-config'
 import { uninstallTool } from '../utils/installer'
+import { readLocalConfig, writeLocalConfig } from '../utils/local-config'
 import { confirm, displayBanner, selectCodeTool } from '../utils/ui'
 
 export interface UninstallOptions {
@@ -33,6 +34,17 @@ export async function uninstall(options: UninstallOptions = {}): Promise<void> {
       clearCodexApiConfig()
     }
     console.log(ansis.green('✔ 中转站配置已清除'))
+
+    // 清除该工具对应的本地记忆（保留另一工具的记忆）
+    const memory = readLocalConfig()
+    if (tool === 'claude-code')
+      delete memory.claude
+    else
+      delete memory.codex
+    if (memory.codeType === tool)
+      delete memory.codeType
+    writeLocalConfig(memory)
+    console.log(ansis.gray('✔ 已清除本地记忆'))
 
     if (removeCli) {
       const ok = await uninstallTool(tool)

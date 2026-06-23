@@ -1,4 +1,5 @@
 import type { CodeToolType } from '../constants'
+import type { LocalConfig } from '../utils/local-config'
 import type { RemoteModel } from '../utils/models'
 import process from 'node:process'
 import ansis from 'ansis'
@@ -7,6 +8,7 @@ import { resolveCodeToolType } from '../constants'
 import { clearClaudeApiConfig, displayClaudeConfig, getExistingClaudeApiConfig, writeClaudeApiConfig } from '../utils/claude-config'
 import { clearCodexApiConfig, displayCodexConfig, getExistingCodexConfig, writeCodexApiConfig } from '../utils/codex-config'
 import { installTool, isToolInstalled } from '../utils/installer'
+import { readLocalConfig, updateLocalConfig } from '../utils/local-config'
 import { buildModelsChoices, fetchModels } from '../utils/models'
 import { confirm, displayBanner, inputApiToken, inputBaseUrl, maskToken, selectCodeTool } from '../utils/ui'
 
@@ -36,6 +38,7 @@ async function promptModelFromList(
   message: string,
   preset?: string,
   skipPrompt?: boolean,
+  defaultModel?: string,
 ): Promise<string | undefined> {
   if (preset && preset.trim())
     return preset.trim()
@@ -49,6 +52,7 @@ async function promptModelFromList(
       type: 'input',
       name: 'manual',
       message,
+      default: defaultModel,
     })
     return manual.trim() || undefined
   }
@@ -61,11 +65,12 @@ async function promptModelFromList(
       ...buildModelsChoices(models),
       { name: '暂不设置（跳过）', value: '__none__' },
     ],
+    default: defaultModel,
   })
   return choice === '__none__' ? undefined : choice
 }
 
-async function configureClaudeCode(options: InitOptions, baseUrl: string, token: string): Promise<void> {
+async function configureClaudeCode(options: InitOptions, baseUrl: string, token: string, memory: LocalConfig): Promise<void> {
   const existing = getExistingClaudeApiConfig()
   if (existing && !options.skipPrompt) {
     console.log(ansis.blue('\nℹ 检测到已有 Claude Code 配置：'))
@@ -88,19 +93,23 @@ async function configureClaudeCode(options: InitOptions, baseUrl: string, token:
 
   // 一次性拉取模型列表，供四档模型选择复用
   const models = await fetchModelList(baseUrl, token)
+  const m = memory.claude
 
-  const model = await promptModelFromList(models, '请选择主模型 (ANTHROPIC_MODEL)：', options.model, options.skipPrompt)
-  const opusModel = await promptModelFromList(models, '请选择 Opus 档模型 (ANTHROPIC_DEFAULT_OPUS_MODEL)：', options.opusModel, options.skipPrompt)
-  const sonnetModel = await promptModelFromList(models, '请选择 Sonnet 档模型 (ANTHROPIC_DEFAULT_SONNET_MODEL)：', options.sonnetModel, options.skipPrompt)
-  const haikuModel = await promptModelFromList(models, '请选择 Haiku 档模型 (ANTHROPIC_DEFAULT_HAIKU_MODEL)：', options.haikuModel, options.skipPrompt)
+  const model = await promptModelFromList(models, '请选择主模型 (ANTHROPIC_MODEL)：', options.model, options.skipPrompt, m?.model)
+  const opusModel = await promptModelFromList(models, '请选择 Opus 档模型 (ANTHROPIC_DEFAULT_OPUS_MODEL)：', options.opusModel, options.skipPrompt, m?.opusModel)
+  const sonnetModel = await promptModelFromList(models, '请选择 Sonnet 档模型 (ANTHROPIC_DEFAULT_SONNET_MODEL)：', options.sonnetModel, options.skipPrompt, m?.sonnetModel)
+  const haikuModel = await promptModelFromList(models, '请选择 Haiku 档模型 (ANTHROPIC_DEFAULT_HAIKU_MODEL)：', options.haikuModel, options.skipPrompt, m?.haikuModel)
 
   const config = { baseUrl, token, model, opusModel, sonnetModel, haikuModel }
   writeClaudeApiConfig(config)
   console.log(ansis.green('\n✔ Claude Code 配置完成'))
   displayClaudeConfig(config)
+
+  // 记住本次选择
+  updateLocalConfig({ claude: { model, opusModel, sonnetModel, haikuModel } })
 }
 
-async function configureCodex(options: InitOptions, baseUrl: string, token: string): Promise<void> {
+async function configureCodex(options: InitOptions, baseUrl: string, token: string, memory: LocalConfig): Promise<void> {
   const existing = getExistingCodexConfig()
   if (existing && !options.skipPrompt) {
     console.log(ansis.blue('\nℹ 检测到已有 Codex 配置：'))
@@ -116,18 +125,23 @@ async function configureCodex(options: InitOptions, baseUrl: string, token: stri
   }
 
   const models = await fetchModelList(baseUrl, token)
-  const model = await promptModelFromList(models, '请选择默认使用的模型：', options.model, options.skipPrompt)
+  const model = await promptModelFromList(models, '请选择默认使用的模型：', options.model, options.skipPrompt, memory.codex?.model)
   const config = { baseUrl, token, model }
   writeCodexApiConfig(config)
   console.log(ansis.green('\n✔ Codex 配置完成'))
   displayCodexConfig(config)
+
+  updateLocalConfig({ codex: { model } })
 }
 
 export async function init(options: InitOptions = {}): Promise<void> {
   try {
+    // 读取本地记忆（上次的配置）
+    const memory = readLocalConfig()
+
     const tool: CodeToolType = options.codeType
       ? resolveCodeToolType(options.codeType)
-      : (options.skipPrompt ? 'claude-code' : await selectCodeTool())
+      : (options.skipPrompt ? 'claude-code' : await selectCodeTool(memory.codeType))
 
     displayBanner(tool)
 
@@ -151,14 +165,15 @@ export async function init(options: InitOptions = {}): Promise<void> {
       }
     }
 
-    // 第二步：引导填写 base_url 与 api_token
-    const baseUrl = options.baseUrl || (options.skipPrompt ? '' : await inputBaseUrl())
+    // 第二步：引导填写 base_url 与 api_token（默认回填上次值）
+    const baseUrl = options.baseUrl || (options.skipPrompt ? (memory.baseUrl || '') : await inputBaseUrl(memory.baseUrl))
     if (!baseUrl) {
       console.error(ansis.red('✖ 缺少 base_url，无法继续配置'))
       process.exit(1)
     }
 
-    const token = options.token || (options.skipPrompt ? '' : await inputApiToken())
+    const token = options.token
+      || (options.skipPrompt ? (memory.token || '') : await inputApiToken(memory.token))
     if (!token) {
       console.error(ansis.red('✖ 缺少 api_token，无法继续配置'))
       process.exit(1)
@@ -167,11 +182,14 @@ export async function init(options: InitOptions = {}): Promise<void> {
     // 第三步：拉取模型列表并选择
     // 第四步：写入对应客户端配置文件
     if (tool === 'claude-code') {
-      await configureClaudeCode(options, baseUrl, token)
+      await configureClaudeCode(options, baseUrl, token, memory)
     }
     else {
-      await configureCodex(options, baseUrl, token)
+      await configureCodex(options, baseUrl, token, memory)
     }
+
+    // 记住本次工具选择与 base_url / token（便于下次回填）
+    updateLocalConfig({ codeType: tool, baseUrl, token })
 
     console.log(`\n${ansis.cyan('🎉 配置完成！现在可以直接使用对应 CLI 工具连接 SrP-LLM 中转站。')}`)
   }

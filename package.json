@@ -1,7 +1,7 @@
 {
   "name": "srpllm",
   "type": "module",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "packageManager": "pnpm@10.17.1",
   "description": "SrP-LLM 中转站客户端一键配置工具：安装 Claude Code / Codex 并引导填写 base_url、api_token 与模型",
   "author": {
