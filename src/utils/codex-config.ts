@@ -158,23 +158,6 @@ export function writeCodexApiConfig(config: CodexApiConfig): void {
   writeJson(CODEX_AUTH_FILE, auth)
 }
 
-export function disableCodexWindowsSandbox(): void {
-  if (!exists(CODEX_CONFIG_FILE))
-    return
-  let content = readFileRaw(CODEX_CONFIG_FILE)
-  if (content.includes('sandbox = "disabled"'))
-    return
-
-  // If [windows] section exists, append to it, else create it
-  if (content.match(/^\[windows\]/m)) {
-    content = content.replace(/^\[windows\]/m, '[windows]\nsandbox = "disabled"')
-  }
-  else {
-    content += '\n[windows]\nsandbox = "disabled"\n'
-  }
-  writeFile(CODEX_CONFIG_FILE, content)
-}
-
 export function clearCodexApiConfig(): void {
   if (exists(CODEX_CONFIG_FILE)) {
     const backup = `${CODEX_CONFIG_FILE}.backup_${timestamp()}`

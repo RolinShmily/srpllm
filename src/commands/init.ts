@@ -1,7 +1,6 @@
 import type { RelayToolType } from '../constants'
 import type { LocalConfig } from '../utils/local-config'
 import type { RemoteModel } from '../utils/models'
-import { execSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import process from 'node:process'
@@ -152,28 +151,6 @@ async function configureCodex(options: InitOptions, baseUrl: string, token: stri
   writeCodexApiConfig(config)
   console.log(ansis.green('\n✔ Codex 配置完成'))
   displayCodexConfig(config)
-
-  if (process.platform === 'win32') {
-    try {
-      const output = execSync('pwsh -NoProfile -Command "(Get-Command pwsh).Source"', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] }).trim()
-      if (output.includes('WindowsApps')) {
-        console.log(ansis.yellow('\n⚠ 检测到你使用的是微软商店版的 PowerShell (pwsh)'))
-        console.log(ansis.gray('  这会导致 Codex 的 Windows 沙盒功能出现 CreateProcessAsUserW failed: 5 权限错误。'))
-        const shouldDisable = options.skipPrompt ? true : await confirm('是否自动在 Codex 配置中关闭沙盒功能以避免报错？', true)
-        if (shouldDisable) {
-          const { disableCodexWindowsSandbox } = await import('../utils/codex-config')
-          disableCodexWindowsSandbox()
-          console.log(ansis.green('✔ 已在 Codex 配置中关闭沙盒功能'))
-        }
-        else {
-          console.log(ansis.yellow('ℹ 已跳过，如果后续运行报错，请查阅文档或手动关闭沙盒'))
-        }
-      }
-    }
-    catch {
-      // 忽略找不到 pwsh 或是执行失败的情况
-    }
-  }
 
   updateLocalConfig({ codex: { model } })
 }
