@@ -43,7 +43,7 @@ zh_output.txt
 en_output.txt
 release_*_test.log
 test-*.js
-zcf-*.tgz
+*.tgz
 
 # VitePress
 docs/.vitepress/cache/**
