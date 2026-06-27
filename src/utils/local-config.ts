@@ -3,7 +3,7 @@ import { homedir } from 'node:os'
 import { join } from 'pathe'
 import { ensureDir, readJson, writeJson } from './fs'
 
-const SRPLLM_DIR = join(homedir(), '.srpllm')
+export const SRPLLM_DIR = join(homedir(), '.srpllm')
 const SRPLLM_CONFIG_FILE = join(SRPLLM_DIR, 'config.json')
 
 export interface LocalConfig {

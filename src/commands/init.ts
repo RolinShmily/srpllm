@@ -14,6 +14,7 @@ import { clearCodexApiConfig, displayCodexConfig, enableCodexFullAccess, getExis
 import { ensureDir, writeFile } from '../utils/fs'
 import { installTool, isToolInstalled } from '../utils/installer'
 import { readLocalConfig, updateLocalConfig } from '../utils/local-config'
+import { readModelCache, writeModelCache } from '../utils/model-cache'
 import { buildModelsChoices, fetchModels, filterByPrefix } from '../utils/models'
 import { confirm, displayBanner, inputApiToken, inputBaseUrl, maskToken, selectTool } from '../utils/ui'
 
@@ -38,14 +39,76 @@ async function fetchModelList(baseUrl: string, token: string): Promise<RemoteMod
   }
 }
 
+/** 将毫秒差转为人类可读的相对时间（如「3 天前」的「3 天」） */
+function formatAge(ms: number): string {
+  const sec = Math.floor(ms / 1000)
+  if (sec < 60)
+    return `${sec} 秒`
+  const min = Math.floor(sec / 60)
+  if (min < 60)
+    return `${min} 分钟`
+  const hr = Math.floor(min / 60)
+  if (hr < 24)
+    return `${hr} 小时`
+  const day = Math.floor(hr / 24)
+  if (day < 30)
+    return `${day} 天`
+  const month = Math.floor(day / 30)
+  if (month < 12)
+    return `${month} 个月`
+  return `${Math.floor(month / 12)} 年`
+}
+
+/**
+ * 拉取失败后回退到本地缓存。
+ * 交互模式下询问用户是否使用缓存；非交互模式（skipPrompt）下若有缓存则静默使用。
+ * 缓存中存的是全量列表，这里再按前缀过滤后返回。
+ */
+async function tryCachedModels(
+  baseUrl: string,
+  prefix: string,
+  skipPrompt?: boolean,
+): Promise<RemoteModel[] | null> {
+  const cache = readModelCache(baseUrl)
+  if (!cache || cache.models.length === 0)
+    return null
+
+  const ageStr = formatAge(Date.now() - new Date(cache.fetchedAt).getTime())
+  const filtered = filterByPrefix(cache.models, prefix)
+
+  if (skipPrompt) {
+    if (filtered.length > 0) {
+      console.log(ansis.gray(`ℹ 拉取失败，已回退到本地缓存模型列表（${ageStr}前拉取，共 ${cache.models.length} 个，过滤后 ${filtered.length} 个 ${prefix}*）`))
+      return filtered
+    }
+    return null
+  }
+
+  const hint = filtered.length > 0
+    ? `共 ${cache.models.length} 个模型，其中 ${filtered.length} 个 ${prefix}*`
+    : `共 ${cache.models.length} 个模型，但无 ${prefix}* 前缀`
+  console.log(ansis.yellow(`\nℹ 拉取模型列表失败，检测到本地缓存（${ageStr}前，${hint}）`))
+  const useCache = await confirm('是否使用本地缓存的模型列表？', true)
+  if (!useCache)
+    return null
+  return filtered.length > 0 ? filtered : null
+}
+
 /**
  * 拉取全量模型并按客户端前缀过滤，打印过滤后数量。
- * 拉取失败或过滤后为空时返回 null（调用方降级为手动输入）。
+ * 拉取成功时写入本地缓存；失败时回退到本地缓存（交互模式下询问用户）。
+ * 最终仍为空时返回 null（调用方降级为手动输入）。
  */
-async function fetchFilteredModels(baseUrl: string, token: string, prefix: string): Promise<RemoteModel[] | null> {
+async function fetchFilteredModels(baseUrl: string, token: string, prefix: string, skipPrompt?: boolean): Promise<RemoteModel[] | null> {
   const allModels = await fetchModelList(baseUrl, token)
+
+  // 拉取失败：尝试本地缓存兜底
   if (!allModels)
-    return null
+    return tryCachedModels(baseUrl, prefix, skipPrompt)
+
+  // 拉取成功：写入本地缓存，供下次失败时复用
+  writeModelCache(baseUrl, allModels)
+
   const filtered = filterByPrefix(allModels, prefix)
   if (filtered.length === 0) {
     console.log(ansis.yellow(`ℹ 已获取 ${allModels.length} 个模型，但无 ${prefix}* 前缀的模型，可手动输入`))
@@ -114,7 +177,7 @@ async function configureClaudeCode(options: InitOptions, baseUrl: string, token:
   }
 
   // 一次性拉取全部模型列表，按客户端前缀过滤后供选择复用
-  const models = await fetchFilteredModels(baseUrl, token, MODEL_PREFIX['claude-code'])
+  const models = await fetchFilteredModels(baseUrl, token, MODEL_PREFIX['claude-code'], options.skipPrompt)
   const m = memory.claude
 
   const model = await promptModelFromList(models, '请选择主模型 (ANTHROPIC_MODEL)：', options.model, options.skipPrompt, m?.model)
@@ -148,7 +211,7 @@ async function configureCodex(options: InitOptions, baseUrl: string, token: stri
     }
   }
 
-  const models = await fetchFilteredModels(baseUrl, token, MODEL_PREFIX.codex)
+  const models = await fetchFilteredModels(baseUrl, token, MODEL_PREFIX.codex, options.skipPrompt)
   const model = await promptModelFromList(models, '请选择默认使用的模型：', options.model, options.skipPrompt, memory.codex?.model)
   const config = { baseUrl, token, model }
   writeCodexApiConfig(config)
@@ -198,7 +261,7 @@ function getDownloadsDir(): string {
 }
 
 async function configureChatbox(options: InitOptions, baseUrl: string, token: string, memory: LocalConfig): Promise<void> {
-  const models = await fetchFilteredModels(baseUrl, token, MODEL_PREFIX.chatbox)
+  const models = await fetchFilteredModels(baseUrl, token, MODEL_PREFIX.chatbox, options.skipPrompt)
   const model = await promptModelFromList(models, '请选择默认模型（chat- 前缀）：', options.model, options.skipPrompt, memory.chatbox?.model)
 
   // 生成 config.yaml 到下载目录
