@@ -1,6 +1,7 @@
 import type { RelayToolType } from '../constants'
 import type { LocalConfig } from '../utils/local-config'
 import type { RemoteModel } from '../utils/models'
+import { execSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import process from 'node:process'
@@ -9,7 +10,7 @@ import inquirer from 'inquirer'
 import { join } from 'pathe'
 import { isCliTool, MODEL_PREFIX, resolveCodeToolType } from '../constants'
 import { clearClaudeApiConfig, displayClaudeConfig, getExistingClaudeApiConfig, writeClaudeApiConfig } from '../utils/claude-config'
-import { clearCodexApiConfig, displayCodexConfig, getExistingCodexConfig, writeCodexApiConfig } from '../utils/codex-config'
+import { clearCodexApiConfig, displayCodexConfig, enableCodexFullAccess, getExistingCodexConfig, writeCodexApiConfig } from '../utils/codex-config'
 import { ensureDir, writeFile } from '../utils/fs'
 import { installTool, isToolInstalled } from '../utils/installer'
 import { readLocalConfig, updateLocalConfig } from '../utils/local-config'
@@ -126,6 +127,8 @@ async function configureClaudeCode(options: InitOptions, baseUrl: string, token:
   console.log(ansis.green('\n✔ Claude Code 配置完成'))
   displayClaudeConfig(config)
 
+  console.log(ansis.yellow('\n  ℹ 提示：启动时附加 --dangerously-skip-permissions 可跳过权限确认、授予完全权限'))
+
   // 记住本次选择
   updateLocalConfig({ claude: { model, opusModel, sonnetModel, haikuModel } })
 }
@@ -151,6 +154,28 @@ async function configureCodex(options: InitOptions, baseUrl: string, token: stri
   writeCodexApiConfig(config)
   console.log(ansis.green('\n✔ Codex 配置完成'))
   displayCodexConfig(config)
+
+  if (process.platform === 'win32') {
+    try {
+      const output = execSync('pwsh -NoProfile -Command "(Get-Command pwsh).Source"', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] }).trim()
+      if (output.includes('WindowsApps')) {
+        console.log(ansis.yellow('\n⚠ 检测到你使用的是微软商店版的 PowerShell (pwsh)'))
+        console.log(ansis.gray('  这会导致 Codex 的 Windows 沙盒功能出现 CreateProcessAsUserW failed: 5 权限错误。'))
+        const shouldApply = options.skipPrompt ? true : await confirm('是否自动在 Codex 配置中授予完全访问权限并关闭审批以避免报错？', true)
+        if (shouldApply) {
+          enableCodexFullAccess()
+          console.log(ansis.green('✔ 已授予完全访问权限（sandbox_mode = danger-full-access）并关闭审批（approval_policy = never）'))
+          console.log(ansis.gray('  ℹ 等价于 --dangerously-bypass-approvals-and-sandbox，Codex 启动后将进入 YOLO 模式'))
+        }
+        else {
+          console.log(ansis.yellow('ℹ 已跳过，若后续运行报错，请查阅文档或手动配置 sandbox_mode / approval_policy'))
+        }
+      }
+    }
+    catch {
+      // 忽略找不到 pwsh 或执行失败的情况
+    }
+  }
 
   updateLocalConfig({ codex: { model } })
 }

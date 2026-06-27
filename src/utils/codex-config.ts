@@ -158,6 +158,51 @@ export function writeCodexApiConfig(config: CodexApiConfig): void {
   writeJson(CODEX_AUTH_FILE, auth)
 }
 
+/**
+ * 在 Codex config.toml 顶层写入完全访问权限配置：
+ *   sandbox_mode = "danger-full-access"
+ *   approval_policy = "never"
+ * 已存在则就地更新，缺失则插入到首个 [section] 之前，保持顶层语义。
+ */
+function applyCodexFullAccess(content: string): string {
+  const settings: Record<string, string> = {
+    sandbox_mode: 'danger-full-access',
+    approval_policy: 'never',
+  }
+  const lines = content.split('\n')
+  let firstSection = lines.findIndex(line => /^\s*\[[^\]]+\]/.test(line))
+  if (firstSection === -1)
+    firstSection = lines.length
+
+  const seen = new Set<string>()
+  const processed: string[] = []
+  for (const line of lines.slice(0, firstSection)) {
+    const match = line.match(/^\s*(sandbox_mode|approval_policy)\s*=/)
+    if (match) {
+      const key = match[1]!
+      processed.push(`${key} = "${settings[key]}"`)
+      seen.add(key)
+    }
+    else {
+      processed.push(line)
+    }
+  }
+
+  for (const key of Object.keys(settings)) {
+    if (!seen.has(key))
+      processed.push(`${key} = "${settings[key]}"`)
+  }
+
+  const result = [...processed, ...lines.slice(firstSection)].join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()
+  return `${result}\n`
+}
+
+export function enableCodexFullAccess(): void {
+  if (!exists(CODEX_CONFIG_FILE))
+    return
+  writeFile(CODEX_CONFIG_FILE, applyCodexFullAccess(readFileRaw(CODEX_CONFIG_FILE)))
+}
+
 export function clearCodexApiConfig(): void {
   if (exists(CODEX_CONFIG_FILE)) {
     const backup = `${CODEX_CONFIG_FILE}.backup_${timestamp()}`
