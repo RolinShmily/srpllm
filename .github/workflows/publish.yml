@@ -42,4 +42,18 @@ jobs:
 
       - run: pnpm build
 
+      # Debug: print OIDC token claims
+      - name: Debug OIDC claims
+        run: |
+          echo "=== npm version ==="
+          npm --version
+          echo "=== OIDC claims (aud=sigstore) ==="
+          TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sigstore" | jq -r '.value')
+          echo "$TOKEN" | jq -R 'split(".") | .[1] | @base64d | fromjson'
+          echo "=== OIDC claims (aud=npm) ==="
+          TOKEN2=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=npm" | jq -r '.value')
+          echo "$TOKEN2" | jq -R 'split(".") | .[1] | @base64d | fromjson'
+
       - run: npm publish --provenance --no-git-checks
