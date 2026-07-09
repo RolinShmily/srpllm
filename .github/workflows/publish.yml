@@ -8,6 +8,7 @@ on:
       - 'v*'
   workflow_dispatch:
 
+# 必须的 OIDC 权限
 permissions:
   contents: read
   id-token: write 
@@ -23,9 +24,10 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          # 使用 Node 20，它内置了原生支持无 Token OIDC 的稳定版 npm 10.8.x
           node-version: 20
           cache: pnpm
+          # 我们把它加回来，只要 OIDC 校验通过，它就能正常工作
+          registry-url: 'https://registry.npmjs.org'
 
       - run: pnpm install --frozen-lockfile
 
