@@ -23,11 +23,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 24 
+          # 使用 Node 20，它内置了原生支持无 Token OIDC 的稳定版 npm 10.8.x
+          node-version: 20
           cache: pnpm
-
-      - name: Upgrade npm to latest
-        run: npm install -g npm@latest
 
       - run: pnpm install --frozen-lockfile
 
