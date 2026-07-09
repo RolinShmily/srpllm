@@ -8,10 +8,9 @@ on:
       - 'v*'
   workflow_dispatch:
 
-# 必须的 OIDC 权限
 permissions:
   contents: read
-  id-token: write 
+  id-token: write       # OIDC 必须权限
 
 jobs:
   publish:
@@ -26,11 +25,9 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          registry-url: 'https://registry.npmjs.org'
 
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm build
 
-      # 移除了会导致崩溃的 Debug 步骤，直接执行发布
       - run: npm publish --provenance --no-git-checks --access public
