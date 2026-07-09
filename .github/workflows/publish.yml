@@ -8,10 +8,10 @@ on:
       - 'v*'
   workflow_dispatch:
 
-# 必须的 OIDC 权限
+# OIDC 必须权限（与官方文档一致）
 permissions:
-  contents: read
   id-token: write 
+  contents: read
 
 jobs:
   publish:
@@ -22,15 +22,16 @@ jobs:
       - uses: pnpm/action-setup@v4
         name: Install pnpm
 
+      # 完全对齐官方推荐环境
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: pnpm
-          # 我们把它加回来，只要 OIDC 校验通过，它就能正常工作
+          node-version: '24' # 满足 >= 22.14.0 的要求
           registry-url: 'https://registry.npmjs.org'
 
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm build
 
-      - run: npm publish --provenance --no-git-checks --access public
+      # 【最关键的一步】：直接使用 npm publish。
+      # 官方说明：不要加 --provenance，npm 11+ 会自动处理。
+      - run: npm publish --access public
