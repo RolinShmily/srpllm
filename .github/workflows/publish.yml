@@ -36,17 +36,10 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          registry-url: https://registry.npmjs.org
 
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm build
 
-      # Debug: confirm npm version
-      - run: node --version && npm --version
-
-      # OIDC publish — ensure no stale .npmrc
-      - run: |
-          rm -f .npmrc ~/.npmrc
-          npm publish --provenance --no-git-checks
-        env:
-          npm_config_registry: https://registry.npmjs.org/
+      - run: npm publish --provenance --no-git-checks
