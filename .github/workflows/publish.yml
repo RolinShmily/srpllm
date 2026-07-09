@@ -56,4 +56,6 @@ jobs:
             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=npm" | jq -r '.value')
           echo "$TOKEN2" | jq -R 'split(".") | .[1] | @base64d | fromjson'
 
-      - run: npm publish --provenance --no-git-checks
+      - run: npm publish --provenance --no-git-checks --loglevel verbose
+        env:
+          NPM_CONFIG_PROVENANCE: "true"
