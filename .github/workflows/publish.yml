@@ -10,7 +10,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write       # OIDC 必须权限
+  id-token: write 
 
 jobs:
   publish:
@@ -23,8 +23,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24 
           cache: pnpm
+
+      - name: Upgrade npm to latest
+        run: npm install -g npm@latest
 
       - run: pnpm install --frozen-lockfile
 
