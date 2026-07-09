@@ -1,14 +1,3 @@
-# Publish to npm via Trusted Publisher (OIDC)
-#
-# Prerequisites (one-time npm setup):
-#   https://www.npmjs.com/package/srpllm → Settings → Trusted Publishers → Add Publisher
-#   Publisher:       GitHub Actions
-#   Org or user:     RolinShmily
-#   Repository:      srpllm
-#   Workflow file:   publish.yml
-#   Environment:     (leave blank)
-#   Allowed actions: default
-
 name: publish
 
 on:
@@ -19,9 +8,10 @@ on:
       - 'v*'
   workflow_dispatch:
 
+# 必须的 OIDC 权限
 permissions:
   contents: read
-  id-token: write       # required for OIDC
+  id-token: write 
 
 jobs:
   publish:
@@ -36,26 +26,11 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          registry-url: https://registry.npmjs.org
+          registry-url: 'https://registry.npmjs.org'
 
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm build
 
-      # Debug: print OIDC token claims
-      - name: Debug OIDC claims
-        run: |
-          echo "=== npm version ==="
-          npm --version
-          echo "=== OIDC claims (aud=sigstore) ==="
-          TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sigstore" | jq -r '.value')
-          echo "$TOKEN" | jq -R 'split(".") | .[1] | @base64d | fromjson'
-          echo "=== OIDC claims (aud=npm) ==="
-          TOKEN2=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=npm" | jq -r '.value')
-          echo "$TOKEN2" | jq -R 'split(".") | .[1] | @base64d | fromjson'
-
-      - run: npm publish --provenance --no-git-checks --loglevel verbose
-        env:
-          NPM_CONFIG_PROVENANCE: "true"
+      # 移除了会导致崩溃的 Debug 步骤，直接执行发布
+      - run: npm publish --provenance --no-git-checks --access public
