@@ -1,0 +1,50 @@
+# Publish to npm via Trusted Publisher (OIDC)
+#
+# 1. Go to https://www.npmjs.com/settings/<org>/packages -> srpllm -> Trusted Publishers
+# 2. Click "Add Publisher"
+# 3. Fill:
+#    - Publisher: GitHub Actions
+#    - Organization or user:  RolinShmily
+#    - Repository:            srpllm
+#    - Workflow filename:     publish.yml
+#    - Environment name:      (leave blank, or set an env name and add `environment:` below)
+#    - Allowed actions:       keep the default (only this workflow)
+# 4. Click "Add Publisher"
+#
+# That's it. The id-token: write permission + --provenance is the key.
+
+name: publish
+
+on:
+  release:
+    types: [published]
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write     # required for OIDC trusted publishing
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # environment: publishing   # optional — uncomment if you set an environment in npm
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        name: Install pnpm
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - run: pnpm publish --provenance --no-git-checks
