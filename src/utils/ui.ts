@@ -7,7 +7,7 @@ import { CODE_TOOL_LABELS } from '../constants'
 export function displayBanner(codeTool?: RelayToolType): void {
   const tool = codeTool ? ` ${ansis.gray(`· ${CODE_TOOL_LABELS[codeTool]}`)}` : ''
   console.log(ansis.cyan.bold(`\n  SrP-LLM 配置工具 v${version}${tool}`))
-  console.log(ansis.gray('  中转站客户端一键配置：安装 CLI · 填写 base_url / api_token · 选择模型\n'))
+  console.log(ansis.gray('  中转站客户端一键配置：安装 CLI · 填写 base_url / api_token · 选择模型与推理强度\n'))
 }
 
 export async function selectTool(defaultTool?: RelayToolType): Promise<RelayToolType> {

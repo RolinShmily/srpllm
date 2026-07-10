@@ -2,7 +2,7 @@
 
 # SrP-LLM 配置工具
 
-中转站客户端一键配置：安装 Claude Code / Codex · 填写 base_url 与 api_token · 从 litellm 拉取并选择模型
+中转站客户端一键配置：安装 Claude Code / Codex · 填写 base_url 与 api_token · 从 litellm 拉取并选择模型与推理强度
 
 [![npm version](https://img.shields.io/npm/v/srpllm.svg)](https://www.npmjs.com/package/srpllm)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
@@ -15,7 +15,7 @@
 
 1. 安装 Claude Code / Codex CLI
 2. 引导填写中转站的 `base_url` 与 `api_token`
-3. 从中转站后端 `GET {base_url}/v1/models` 拉取可用模型列表并选择
+3. 从中转站后端 `GET {base_url}/v1/models` 拉取可用模型列表；Codex 还可选择模型推理强度
 4. 把配置写入对应客户端的配置文件（Claude Code 的 `settings.json` / Codex 的 `config.toml` + `auth.json`）
 
 仅做「安装 + 配置接入中转站」这一件事，不做更多设置。
@@ -51,6 +51,17 @@ npx srpllm init -s \
   -H glm-5-turbo
 ```
 
+Codex 非交互配置示例：
+
+```bash
+npx srpllm init -s \
+  -T codex \
+  -u https://api.srpllm.com \
+  -k sk-xxxx \
+  -m cx-gpt-5.6-sol \
+  -r max
+```
+
 ### 参数
 
 | 参数 | 简写 | 说明 |
@@ -58,7 +69,8 @@ npx srpllm init -s \
 | `--code-type` | `-T` | 工具类型：`claude-code` / `codex`（简写 `cc` / `cx`） |
 | `--base-url` | `-u` | 中转站 base_url（例如 `https://api.srpllm.com`） |
 | `--token` | `-k` | api_token |
-| `--model` | `-m` | 主模型，写入 `ANTHROPIC_MODEL` |
+| `--model` | `-m` | 默认模型；Claude Code 写入 `ANTHROPIC_MODEL`，Codex 写入 `model` |
+| `--reasoning-effort` | `-r` | Codex 推理强度：`low` / `medium` / `high` / `xhigh` / `max` / `ultra` |
 | `--opus-model` | `-O` | Opus 档模型，写入 `ANTHROPIC_DEFAULT_OPUS_MODEL` |
 | `--sonnet-model` | `-S` | Sonnet 档模型，写入 `ANTHROPIC_DEFAULT_SONNET_MODEL` |
 | `--haiku-model` | `-H` | Haiku 档模型，写入 `ANTHROPIC_DEFAULT_HAIKU_MODEL` |
@@ -66,7 +78,7 @@ npx srpllm init -s \
 | `--help` | `-h` | 显示帮助 |
 | `--version` | `-v` | 显示版本 |
 
-> Opus / Sonnet / Haiku 三档模型参数仅对 Claude Code 生效；Codex 只使用 `--model`。
+> Opus / Sonnet / Haiku 三档模型参数仅对 Claude Code 生效；`--reasoning-effort` 仅对 Codex 生效，具体可用档位取决于模型和中转站。
 
 ## 配置写入位置
 
@@ -98,7 +110,9 @@ npx srpllm init -s \
 
 ```toml
 # --- SrP-LLM 中转站配置 ---
-model = "gpt-5.2"
+model = "cx-gpt-5.6-sol"
+model_reasoning_effort = "max"
+model_catalog_json = "/home/user/.codex/srpllm-models.json"
 model_provider = "srpllm"
 
 [model_providers.srpllm]
@@ -109,7 +123,7 @@ temp_env_key = "SRPLLM_API_KEY"
 requires_openai_auth = false
 ```
 
-并把 `~/.codex/auth.json` 中的 `SRPLLM_API_KEY` 与 `OPENAI_API_KEY` 设为 token（合并保留其它 key）。
+并把 `~/.codex/auth.json` 中的 `SRPLLM_API_KEY` 与 `OPENAI_API_KEY` 设为 token（合并保留其它 key）。选择推理强度后，还会生成 `~/.codex/srpllm-models.json`，为带 `cx-` 前缀的自定义模型补充 Codex 所需的推理能力元数据。
 
 ## 卸载
 
@@ -118,7 +132,7 @@ npx srpllm uninstall
 ```
 
 - Claude Code：从 `settings.json` 清除中转站相关 env 字段，保留其它设置
-- Codex：移除 `[model_providers.srpllm]` 段与顶层 `model`/`model_provider`，保留其它配置（修改前自动备份）
+- Codex：移除 `[model_providers.srpllm]` 段、相关顶层模型/推理配置与 `srpllm-models.json`，保留其它配置（修改前自动备份）
 - 可选择同时卸载 Claude Code / Codex CLI
 
 ## 模型列表获取

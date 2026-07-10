@@ -1,6 +1,7 @@
-import { readFileSync } from 'node:fs'
+import type { CodexModelCatalog, CodexReasoningEffort } from './codex-model-catalog'
+import { readFileSync, unlinkSync } from 'node:fs'
 import ansis from 'ansis'
-import { CODEX_AUTH_FILE, CODEX_CONFIG_FILE, CODEX_DIR, RELAY_PROVIDER_ID } from '../constants'
+import { CODEX_AUTH_FILE, CODEX_CONFIG_FILE, CODEX_DIR, CODEX_MODEL_CATALOG_FILE, RELAY_PROVIDER_ID } from '../constants'
 import { ensureDir, exists, readJson, writeFile, writeJson } from './fs'
 
 function readFileRaw(path: string): string {
@@ -11,6 +12,8 @@ export interface CodexApiConfig {
   baseUrl: string
   token: string
   model?: string
+  reasoningEffort?: CodexReasoningEffort
+  modelCatalog?: CodexModelCatalog
   wireApi?: 'responses' | 'chat'
 }
 
@@ -35,25 +38,46 @@ function backupCodexConfig(): string | null {
   }
 }
 
-function renderSrpllmBlock(config: CodexApiConfig): string {
-  const wireApi = config.wireApi || 'responses'
+function tomlString(value: string): string {
+  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+}
+
+function removeSrpllmModelCatalog(): void {
+  if (!exists(CODEX_MODEL_CATALOG_FILE))
+    return
+  try {
+    unlinkSync(CODEX_MODEL_CATALOG_FILE)
+  }
+  catch {
+  }
+}
+
+function renderSrpllmTopLevel(config: CodexApiConfig): string {
   const lines: string[] = [SRPLLM_HEADER]
   if (config.model)
-    lines.push(`model = "${config.model}"`)
-  lines.push(`model_provider = "${RELAY_PROVIDER_ID}"`)
-  lines.push('')
+    lines.push(`model = ${tomlString(config.model)}`)
+  if (config.reasoningEffort)
+    lines.push(`model_reasoning_effort = ${tomlString(config.reasoningEffort)}`)
+  if (config.modelCatalog)
+    lines.push(`model_catalog_json = ${tomlString(CODEX_MODEL_CATALOG_FILE)}`)
+  lines.push(`model_provider = ${tomlString(RELAY_PROVIDER_ID)}`)
+  return lines.join('\n')
+}
+
+function renderSrpllmProvider(config: CodexApiConfig): string {
+  const wireApi = config.wireApi || 'responses'
+  const lines: string[] = []
   lines.push(`[${SRPLLM_SECTION}]`)
-  lines.push(`name = "SrP-LLM"`)
-  lines.push(`base_url = "${config.baseUrl}"`)
-  lines.push(`wire_api = "${wireApi}"`)
-  lines.push(`temp_env_key = "${ENV_KEY}"`)
+  lines.push(`name = ${tomlString('SrP-LLM')}`)
+  lines.push(`base_url = ${tomlString(config.baseUrl)}`)
+  lines.push(`wire_api = ${tomlString(wireApi)}`)
+  lines.push(`temp_env_key = ${tomlString(ENV_KEY)}`)
   lines.push(`requires_openai_auth = false`)
-  lines.push('')
   return lines.join('\n')
 }
 
 /**
- * 从 config.toml 内容中移除旧的 srpllm 段、顶层 model/model_provider 及其注释头，
+ * 从 config.toml 内容中移除旧的 srpllm 段、工具管理的顶层模型配置及其注释头，
  * 返回保留其余配置后的内容。
  */
 function stripSrpllmManaged(content: string): string {
@@ -105,8 +129,8 @@ function stripSrpllmManaged(content: string): string {
     }
 
     if (!inSection) {
-      // 顶层 model / model_provider 由我们接管，剔除
-      if (/^model\s*=/.test(trimmed) || /^model_provider\s*=/.test(trimmed))
+      // 顶层模型/provider/推理配置由我们接管，剔除
+      if (/^(?:model|model_provider|model_reasoning_effort|model_catalog_json)\s*=/.test(trimmed))
         continue
       // 跳过遗留的 SrP-LLM/ZCF 顶层注释头
       if (trimmed === SRPLLM_HEADER || /---\s*SrP-LLM\s*---/i.test(trimmed) || /---\s*model provider added by ZCF\s*---/i.test(trimmed))
@@ -121,8 +145,9 @@ function stripSrpllmManaged(content: string): string {
 
 function mergeConfigContent(existing: string, config: CodexApiConfig): string {
   const stripped = stripSrpllmManaged(existing)
-  const block = renderSrpllmBlock(config)
-  const merged = stripped.trim() ? `${block}\n${stripped}` : `${block}\n`
+  // provider 段必须放在其它顶层键之后，否则原顶层配置会落入 provider table。
+  const parts = [renderSrpllmTopLevel(config), stripped.trim(), renderSrpllmProvider(config)].filter(Boolean)
+  const merged = parts.join('\n\n')
   return `${merged.replace(/\n{3,}/g, '\n\n').trimEnd()}\n`
 }
 
@@ -132,11 +157,12 @@ export function getExistingCodexConfig(): CodexApiConfig | null {
   const content = readFileRaw(CODEX_CONFIG_FILE)
   const baseUrl = content.match(new RegExp(`\\[${escapeRegex(SRPLLM_SECTION)}\\][\\s\\S]*?base_url\\s*=\\s*"([^"]+)"`))?.[1]
   const model = content.match(/^model\s*=\s*"([^"]+)"/m)?.[1]
+  const reasoningEffort = content.match(/^model_reasoning_effort\s*=\s*"([^"]+)"/m)?.[1] as CodexReasoningEffort | undefined
   const auth = readJson<Record<string, string>>(CODEX_AUTH_FILE) || {}
   const token = auth[ENV_KEY] || auth.OPENAI_API_KEY
   if (!baseUrl && !token)
     return null
-  return { baseUrl: baseUrl || '', token: token || '', model }
+  return { baseUrl: baseUrl || '', token: token || '', model, reasoningEffort }
 }
 
 function escapeRegex(s: string): string {
@@ -148,6 +174,11 @@ export function writeCodexApiConfig(config: CodexApiConfig): void {
   const backup = backupCodexConfig()
   if (backup)
     console.log(ansis.gray(`✔ 已备份原配置：${backup}`))
+
+  if (config.modelCatalog)
+    writeJson(CODEX_MODEL_CATALOG_FILE, config.modelCatalog)
+  else
+    removeSrpllmModelCatalog()
 
   const existing = exists(CODEX_CONFIG_FILE) ? readFileRaw(CODEX_CONFIG_FILE) : ''
   writeFile(CODEX_CONFIG_FILE, mergeConfigContent(existing, config))
@@ -212,11 +243,12 @@ export function clearCodexApiConfig(): void {
     }
     catch {
     }
-    // 仅移除 srpllm 段与顶层 model/model_provider，保留其它配置
+    // 仅移除 srpllm 段与工具管理的顶层模型配置，保留其它配置
     const existing = readFileRaw(CODEX_CONFIG_FILE)
     const cleaned = stripSrpllmManaged(existing)
     writeFile(CODEX_CONFIG_FILE, cleaned ? `${cleaned}\n` : '# Codex 配置\n')
   }
+  removeSrpllmModelCatalog()
   const auth = readJson<Record<string, string>>(CODEX_AUTH_FILE) || {}
   delete auth[ENV_KEY]
   delete auth.OPENAI_API_KEY
@@ -230,6 +262,10 @@ export function displayCodexConfig(config: CodexApiConfig): void {
   console.log(ansis.gray(`  token：${maskToken(config.token)}`))
   if (config.model)
     console.log(ansis.gray(`  模型：${config.model}`))
+  if (config.reasoningEffort)
+    console.log(ansis.gray(`  推理强度：${config.reasoningEffort}`))
+  if (config.modelCatalog)
+    console.log(ansis.gray(`  模型目录：${CODEX_MODEL_CATALOG_FILE}`))
 }
 
 function maskToken(token: string): string {

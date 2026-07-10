@@ -20,7 +20,8 @@ export function customizeHelp(sections: any[]): any[] {
       `  ${ansis.green('--code-type, -T')} <type>   指定工具 (claude-code/codex/chatbox, cc/cx/cb)`,
       `  ${ansis.green('--base-url, -u')} <url>      中转站 base_url`,
       `  ${ansis.green('--token, -k')} <token>       api_token`,
-      `  ${ansis.green('--model, -m')} <model>       主模型 (ANTHROPIC_MODEL)`,
+      `  ${ansis.green('--model, -m')} <model>       默认模型`,
+      `  ${ansis.green('--reasoning-effort, -r')} <effort> Codex 推理强度 (low/medium/high/xhigh/max/ultra)`,
       `  ${ansis.green('--opus-model, -O')} <model>   Opus 档模型 (ANTHROPIC_DEFAULT_OPUS_MODEL)`,
       `  ${ansis.green('--sonnet-model, -S')} <model> Sonnet 档模型 (ANTHROPIC_DEFAULT_SONNET_MODEL)`,
       `  ${ansis.green('--haiku-model, -H')} <model>  Haiku 档模型 (ANTHROPIC_DEFAULT_HAIKU_MODEL)`,
@@ -30,7 +31,7 @@ export function customizeHelp(sections: any[]): any[] {
       '',
       ansis.gray('  示例'),
       `  ${ansis.cyan('npx srpllm')}`,
-      `  ${ansis.cyan('npx srpllm init -T codex -u https://api.srpllm.com -k sk-xxx -m gpt-5.2')}`,
+      `  ${ansis.cyan('npx srpllm init -T codex -u https://api.srpllm.com -k sk-xxx -m cx-gpt-5.6-sol -r max')}`,
     ].join('\n'),
   })
   return sections
@@ -42,7 +43,8 @@ export function setupCommands(cli: CAC): void {
     .option('--code-type, -T <type>', '工具类型 (claude-code/codex/chatbox, cc/cx/cb)')
     .option('--base-url, -u <url>', '中转站 base_url')
     .option('--token, -k <token>', 'api_token')
-    .option('--model, -m <model>', '主模型 (ANTHROPIC_MODEL)')
+    .option('--model, -m <model>', '默认模型')
+    .option('--reasoning-effort, -r <effort>', 'Codex 推理强度 (low/medium/high/xhigh/max/ultra)')
     .option('--opus-model, -O <model>', 'Opus 档模型 (ANTHROPIC_DEFAULT_OPUS_MODEL)')
     .option('--sonnet-model, -S <model>', 'Sonnet 档模型 (ANTHROPIC_DEFAULT_SONNET_MODEL)')
     .option('--haiku-model, -H <model>', 'Haiku 档模型 (ANTHROPIC_DEFAULT_HAIKU_MODEL)')
@@ -56,7 +58,8 @@ export function setupCommands(cli: CAC): void {
     .option('--code-type, -T <type>', '工具类型 (claude-code/codex/chatbox, cc/cx/cb)')
     .option('--base-url, -u <url>', '中转站 base_url')
     .option('--token, -k <token>', 'api_token')
-    .option('--model, -m <model>', '主模型 (ANTHROPIC_MODEL)')
+    .option('--model, -m <model>', '默认模型')
+    .option('--reasoning-effort, -r <effort>', 'Codex 推理强度 (low/medium/high/xhigh/max/ultra)')
     .option('--opus-model, -O <model>', 'Opus 档模型 (ANTHROPIC_DEFAULT_OPUS_MODEL)')
     .option('--sonnet-model, -S <model>', 'Sonnet 档模型 (ANTHROPIC_DEFAULT_SONNET_MODEL)')
     .option('--haiku-model, -H <model>', 'Haiku 档模型 (ANTHROPIC_DEFAULT_HAIKU_MODEL)')

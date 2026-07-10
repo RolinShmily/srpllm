@@ -7,6 +7,7 @@ export const CLAUDE_SETTINGS_FILE = join(CLAUDE_DIR, 'settings.json')
 export const CODEX_DIR = join(homedir(), '.codex')
 export const CODEX_CONFIG_FILE = join(CODEX_DIR, 'config.toml')
 export const CODEX_AUTH_FILE = join(CODEX_DIR, 'auth.json')
+export const CODEX_MODEL_CATALOG_FILE = join(CODEX_DIR, 'srpllm-models.json')
 
 export const CODE_TOOL_TYPES = ['claude-code', 'codex'] as const
 export type CodeToolType = (typeof CODE_TOOL_TYPES)[number]

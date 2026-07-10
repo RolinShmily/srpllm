@@ -11,6 +11,7 @@ import { join } from 'pathe'
 import { isCliTool, MODEL_PREFIX, resolveCodeToolType } from '../constants'
 import { clearClaudeApiConfig, displayClaudeConfig, getExistingClaudeApiConfig, writeClaudeApiConfig } from '../utils/claude-config'
 import { clearCodexApiConfig, displayCodexConfig, enableCodexFullAccess, getExistingCodexConfig, writeCodexApiConfig } from '../utils/codex-config'
+import { buildSrpllmCodexModelCatalog, CODEX_REASONING_EFFORTS, getCodexReasoningEfforts, isCodexReasoningEffort, loadBundledCodexModelCatalog } from '../utils/codex-model-catalog'
 import { ensureDir, writeFile } from '../utils/fs'
 import { installTool, isToolInstalled } from '../utils/installer'
 import { readLocalConfig, updateLocalConfig } from '../utils/local-config'
@@ -24,6 +25,7 @@ export interface InitOptions {
   baseUrl?: string
   token?: string
   model?: string
+  reasoningEffort?: string
   opusModel?: string
   sonnetModel?: string
   haikuModel?: string
@@ -155,6 +157,45 @@ async function promptModelFromList(
   return choice === '__none__' ? undefined : choice
 }
 
+const REASONING_EFFORT_LABELS: Record<(typeof CODEX_REASONING_EFFORTS)[number], string> = {
+  low: 'low（更快，较少推理）',
+  medium: 'medium（速度与推理平衡）',
+  high: 'high（复杂任务）',
+  xhigh: 'xhigh（更高强度，取决于模型支持）',
+  max: 'max（最大强度，取决于模型支持）',
+  ultra: 'ultra（最大强度并允许自动任务委派，取决于模型支持）',
+}
+
+async function promptCodexReasoningEffort(
+  supportedEfforts: (typeof CODEX_REASONING_EFFORTS)[number][],
+  preset?: string,
+  skipPrompt?: boolean,
+  defaultEffort?: (typeof CODEX_REASONING_EFFORTS)[number],
+): Promise<(typeof CODEX_REASONING_EFFORTS)[number] | undefined> {
+  if (preset && preset.trim()) {
+    const normalized = preset.trim().toLowerCase()
+    if (!isCodexReasoningEffort(normalized))
+      throw new Error(`不支持的 Codex 推理强度：${preset}（可选：${CODEX_REASONING_EFFORTS.join(', ')}）`)
+    return normalized
+  }
+  if (skipPrompt)
+    return undefined
+
+  const fallbackDefault = supportedEfforts.includes('medium') ? 'medium' : supportedEfforts[0]
+  const selectedDefault = defaultEffort && supportedEfforts.includes(defaultEffort) ? defaultEffort : fallbackDefault
+  const { effort } = await inquirer.prompt<{ effort: string }>({
+    type: 'list',
+    name: 'effort',
+    message: '请选择模型推理强度（仅在模型与中转站支持时生效）：',
+    choices: [
+      ...supportedEfforts.map(value => ({ name: REASONING_EFFORT_LABELS[value], value })),
+      { name: '暂不设置（使用模型默认值）', value: '__none__' },
+    ],
+    default: selectedDefault,
+  })
+  return effort === '__none__' ? undefined : effort as (typeof CODEX_REASONING_EFFORTS)[number]
+}
+
 async function configureClaudeCode(options: InitOptions, baseUrl: string, token: string, memory: LocalConfig): Promise<void> {
   const existing = getExistingClaudeApiConfig()
   if (existing && !options.skipPrompt) {
@@ -204,6 +245,8 @@ async function configureCodex(options: InitOptions, baseUrl: string, token: stri
     console.log(ansis.gray(`  token：${maskToken(existing.token)}`))
     if (existing.model)
       console.log(ansis.gray(`  模型：${existing.model}`))
+    if (existing.reasoningEffort)
+      console.log(ansis.gray(`  推理强度：${existing.reasoningEffort}`))
     const overwrite = await confirm('\n已存在配置，是否覆盖为中转站配置？（原配置将自动备份）', true)
     if (!overwrite) {
       console.log(ansis.yellow('ℹ 已跳过 Codex 配置'))
@@ -213,7 +256,18 @@ async function configureCodex(options: InitOptions, baseUrl: string, token: stri
 
   const models = await fetchFilteredModels(baseUrl, token, MODEL_PREFIX.codex, options.skipPrompt)
   const model = await promptModelFromList(models, '请选择默认使用的模型：', options.model, options.skipPrompt, memory.codex?.model)
-  const config = { baseUrl, token, model }
+  const bundledCatalog = model ? await loadBundledCodexModelCatalog() : null
+  const supportedEfforts = model ? getCodexReasoningEfforts(bundledCatalog, model) : []
+  const reasoningEffort = model
+    ? await promptCodexReasoningEffort(supportedEfforts, options.reasoningEffort, options.skipPrompt, memory.codex?.reasoningEffort)
+    : undefined
+  const modelCatalog = model && reasoningEffort
+    ? buildSrpllmCodexModelCatalog(models, model, reasoningEffort, bundledCatalog)
+    : null
+  if (reasoningEffort && !modelCatalog) {
+    console.log(ansis.yellow('⚠ 无法读取当前 Codex 的内置模型目录，已写入推理强度，但 cx- 自定义模型可能不会向接口发送该参数'))
+  }
+  const config = { baseUrl, token, model, reasoningEffort, modelCatalog: modelCatalog || undefined }
   writeCodexApiConfig(config)
   console.log(ansis.green('\n✔ Codex 配置完成'))
   displayCodexConfig(config)
@@ -240,7 +294,7 @@ async function configureCodex(options: InitOptions, baseUrl: string, token: stri
     }
   }
 
-  updateLocalConfig({ codex: { model } })
+  updateLocalConfig({ codex: { model, reasoningEffort } })
 }
 
 /** 获取用户下载目录，回退到 home 目录 */
@@ -338,7 +392,7 @@ export async function init(options: InitOptions = {}): Promise<void> {
       process.exit(1)
     }
 
-    // 第三步：拉取模型列表并选择
+    // 第三步：拉取模型列表，并为 Codex 继续选择推理强度
     // 第四步：写入对应客户端配置文件
     if (tool === 'claude-code') {
       await configureClaudeCode(options, baseUrl, token, memory)

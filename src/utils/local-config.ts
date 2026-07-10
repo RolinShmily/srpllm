@@ -1,3 +1,4 @@
+import type { CodexReasoningEffort } from './codex-model-catalog'
 import { chmodSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'pathe'
@@ -20,9 +21,10 @@ export interface LocalConfig {
     sonnetModel?: string
     haikuModel?: string
   }
-  /** 上次为 Codex 选的模型 */
+  /** 上次为 Codex 选的模型与推理强度 */
   codex?: {
     model?: string
+    reasoningEffort?: CodexReasoningEffort
   }
   /** 上次为 Chatbox 选的模型 */
   chatbox?: {
